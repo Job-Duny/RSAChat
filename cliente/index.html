@@ -6,25 +6,32 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RSA web 🐸</title>
+    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/uicons-solid-rounded/css/uicons-solid-rounded.css'>
+    <link rel="stylesheet" href="./style.css">
 </head>
 
 <body>
-    <h1>Cliente</h1>
-    <div class="notif" id="notif"></div>
-    <div class="groupMain" id="groupMain"></div>
+    <div class="all">
+        <h1>Cliente</h1>
 
-    <form action="">
+        <div class="notif" id="notif">
+            e
+        </div>
+        <div class="messages" id="messages"></div>
 
-        <input type="text" name="user" id="user" placeholder="User" class="usser"/>
+        <form action="">
+            <input type="text" name="user" id="user" placeholder="user" class="form-control" />
+            
+            <input type="text" class="form-control" id="message" placeholder="Message" disabled />
+            
+            <button type="submit" class="btn btn-primary">
+                <i class="fi fi-sr-check"></i>
+            </button>
+        </form>
+    </div>
+    
 
-        <input type="mess" name="mess" id="mess" placeholder="Message here :)" class="mess"/>
-
-        <button type="submit" class="btn">dd✔</button>
-
-    </form>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/big-integer/1.6.51/BigInteger.min.js"/>
-    // <script src="./SenNRec.js" type="module"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/big-integer/1.6.51/BigInteger.min.js"></script> 
     <script src="/socket.io/socket.io.js"></script>
     <script src="./rsa.js"></script>
 
@@ -32,110 +39,108 @@
                 
         const keys = RSA.generate(512);
 
-        const enc = (mess) => {
-
-            // code n encrypt message
-
-            const encoded_message = RSA.encode(mess); // se sustitullle x mess 
-            console.log("Encoded: ",encoded_message);
-            const encrypted_message = RSA.encrypt(encoded_message, keys.e, keys.n);
-            console.log("Encrypted: ",encrypted_message);
-
-            return encrypted_message;
-        }
+        const enc = (msg) => {
+        const encoded_message = RSA.encode(msg);
+        console.log("Encoded:", encoded_message);
+        const encrypted_message = RSA.encrypt(encoded_message, keys.n, keys.e);
+        console.log("Encrypted:", encrypted_message);
+        return encrypted_message;
+        };
 
         const dec = (data) => {
+        const decrypted_message = RSA.decrypt(
+            bigInt(data.msgEnc),
+            data.d,
+            data.n
+        );
 
-            // decrypt and decode message
-
-            console.log(data.msgEnc);
-            const decrypted_message = RSA.decrypt(bigInt(data.msgEnc), keys.d, keys.n);
-
-            console.log('keys:');
-            console.log(keys.n.toString());
-            console.log(keys.e.toString());
-            console.log(keys.d.toString());
-
-
-            console.log("Decripted: ", decrypted_message);
-            const decoded_message = RSA.decode(decrypted_message);
-            console.log("Decoded: ", decoded_message);
-
-            return decoded_message;
-        }
+        console.log("Keys");
+        console.log("n:", keys.n.toString());
+        console.log("d:", keys.d.toString());
+        console.log("e:", keys.e.toString());
+        console.log("Decrypted:", decrypted_message);
+        const decoded_message = RSA.decode(decrypted_message);
+        console.log("Decoded:", decoded_message.toString());
+        return decoded_message.toString();
+        };
 
         const socket = io();
-        const chatMain = document.getElementById('groupMain');
-        const user = document.getElementById('user');
-        const message = document.getElementById('mess');
-        const notif = document.getElementById('notif');
-        const form = document.querySelector('form');
+        const messages = document.getElementById("messages");
+        const user = document.getElementById("user");
+        const message = document.getElementById("message");
+        const notif = document.getElementById("notif");
+        const form = document.querySelector("form");
 
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            if(user.value && message.value){
-                console.log(message.value);
-                console.log(message.value.length);
-                if(message.value.length < 76){
-                    const msgEnc = enc(message.value);
-                    socket.emit('chat-message', {message: { msgEnc, d: keys.d, n: keys.n }, user: user.value});
-                    user.disabled = true;
-
-                    const li = document.createElement('li');
-                    li.cllassName = 'sent-me';
-                    li.innerHTML = `<strong>Me</strong>: ${dec({msgEnc, d: keys.d, n: keys.n})}`;
-                    chatMain.appendChild(li);
-                    message.value = '';
-                }else{
-                    notif.innerHTML = 'Message too long'
-                } 
+        form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (user.value && message.value ) {
+            console.log(message.value)
+            console.log(message.value.length)
+            if(message.value.length<76){
+            const msgEnc = enc(message.value);
+            socket.emit("chat-message", {
+                user: user.value,
+                message: { msgEnc, d: keys.d, n: keys.n },
+            });
+            user.disabled = true;
+            const div = document.createElement("div");
+            div.className = "me";
+            div.innerHTML = `<h2>Me</h2> <p>${dec({
+                msgEnc,
+                d: keys.d,
+                n: keys.n,
+            })}</p>`;
+            messages.appendChild(div);
+            window.scrollTo(0, document.body.scrollHeight);
+            message.value = "";
             }else{
-                notif.innerHTML = 'Please fill all fields'
+            alert("Message lenght must be less than 76 char")
             }
+        } else {
+            alert("user and message are required");
+        }
         });
 
-        user.addEventListener('input', (e) => {
-            if (user.value) {
-                message.disabled = false;
-            } else {
-                message.disabled = true;
-            }
+        user.addEventListener("input", (e) => {
+        if (user.value) {
+            message.disabled = false;
+        } else {
+            message.disabled = true;
+        }
         });
 
-        message.addEventListener('keydown', () => {
-            socket.emit('typing', user.value);
+        message.addEventListener("input", () => {
+        socket.emit("typing", user.value);
         });
 
-        socket.on('chat-message', (data) => {
-            const li = document.createElement('li');
-            console.log(data);
-            const decMess = dec(data.message);
-            li.innerHTML = `<strong>${data.user}</strong>: ${decMess}`;
-            chatMain.appendChild(li);
-            window.scrollTo(0, document.body.scrollHeight);
+        socket.on("chat-message", (data) => {
+        const div = document.createElement("div");
+        div.className = "entry";
+        console.log(data);
+        const decMsg = dec(data.message);
+        div.innerHTML = `<h2>${data.user}</h2> <p>${decMsg}</p>`;
+        messages.appendChild(div);
+        window.scrollTo(0, document.body.scrollHeight);
         });
-
-        socket.on('user-disconnected', (data) => {
-            const li = document.createElement('li');
-            li.className = 'notif';
-            li.innerHTML = `<strong>${data.user}</strong> disconnected`;
-            chatMain.appendChild(li);
-            window.scrollTo(0, document.body.scrollHeight);
+        socket.on("user-disconnected", (data) => {
+        const div = document.createElement("div");
+        div.className = "notify";
+        div.innerHTML = `<h4>${data}</h4>`;
+        messages.appendChild(div);
+        window.scrollTo(0, document.body.scrollHeight);
         });
-
-        socket.on('user-connected', (data) => {
-            const li = document.createElement('li');
-            li.className = 'notif';
-            li.innerHTML = `<strong>${data.user}</strong> connected`;
-            chatMain.appendChild(li);
-            window.scrollTo(0, document.body.scrollHeight);
+        socket.on("user-connected", (data) => {
+        const div = document.createElement("div");
+        div.className = "notify";
+        div.innerHTML = `<h4>${data}</h4>`;
+        messages.appendChild(div);
+        window.scrollTo(0, document.body.scrollHeight);
         });
-
-        socket.on('typing', (data) => {
-            notif.innerHTML = `<strong>${data}</strong> is typing...`;
-            setTimeout(() => {
-                notif.innerHTML = '';
-            }, 1000);
+        socket.on("typing", (data) => {
+        notif.innerHTML = `<h3>${data}</h3> is typing...`;
+        setTimeout(() => {
+            notif.innerHTML = "";
+        }, 2000);
         });
     </script>
 
